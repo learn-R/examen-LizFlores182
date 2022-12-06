@@ -1,0 +1,189 @@
+---
+title: "Examen Final"
+subtitle: |
+  | analisis-examen
+  | Universidad Alberto Hurtado
+  | Introducción a R
+  | Profesora: Valentina Andrade
+  | Ayudantes: Dafne Vargas
+author: "Lizeth Nicolle"
+date: "05/12/2021"
+output:
+  html_document: 
+    theme: cosmo
+    toc_depth: 2
+    toc_float: yes
+    highlight: pygments
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+Sys.setlocale("LC_CTYPE", "spanish")
+options(OutDec= ",", digits = 3)
+```
+
+# 1. Abstract
+
+::: {style="text-align: justify"}
+Frente a la necesidad de contar con un diagnóstico más integro de la población chilena y las encuestan como Casen y el Ministerio de desarrollo social y familiar, se desarrolló una aplicación que toma a ambas encuestas ya mencionadas en una sola que mide el nivel de bienestar social y satisfacción en los aspectos de calidad de vida de los pobladores, el cual se centra en destacar 11 dimensiones del bienestar de hombres y mujeres. Por lo que la siguiente investigación busca analizar los factores que influyen en esta perspectiva de bienestar social en Chile, considerando el sexo, la etnia, la situación de pobreza por ingresos, el tiempo en Trabajo remunerado u ocupación y la situación de inmigración del país. Para efectos de la investigación, se utilizó la base de datos EBS_2021 en el que mediante un analisis de regresión logística binaria se concluye que existe una relación de nivel de insatisfacción respecto a las variables sexo,etnia,situación de pobreza por ingresos,tiempo en Trabajo remunerado u ocupación y situación de inmigración del país.
+:::
+
+# 2. Introducción
+
+::: {style="text-align: justify"}
+El concepto de bienestar abarca multiples dimensiones en la vida de las personas y contempla tanto aspectos materiales como de calidad de vida. Es por ello que,ante la necesidad de contar con un diagnóstico más completo y exacto del bienestar de la población chilena, y que ésta a su vez se complemente con la información entregada por la Encuesta Casen y el Ministerio de Desarrollo Social y Familia. Se llevó a cabo la aplicación de la primera Encuesta de Bienestar Social (EBS) del país.
+
+El modelo que subyace a la EBS, se centra tanto en los resultados como en las oportunidades de las que disponen las personas en 11 dimensiones del Bienestar: Ingreso, Trabajo, Vivienda, Estado de Salud, Balance vida y trabajo, Educación, Relaciones Sociales, Compromiso cívico y gobernanza, Calidad del medio ambiente, Seguridad personal, y Bienestar subjetivo. Todo ello es relevante de analizar dentro de la Encuesta de Bienestar Social debido a que las perspectivas de los sujetos encuestados pueden variar dependiendo en este caso: sexo, etnia, el nivel económico en el que se encuentran, la procedencia de los encuestados y también si en el tiempo que llevan trabajando lo hacen de forma regular o informal.
+
+En base a ello la pregunta que guiará este proyecto de investigación es ¿Qué factores influyen para que la perspectiva de bienestar de los chilenos y chilenas según la EBS 2021 sea buena o mala? todo ello desde un enfoque social, cultural y económico para poder evidenciar si alguno de estos factores está involucrado en mayor o menor nivel respecto a la perspectiva de bienestar de la población chilena.:::
+
+# 3. Análisis
+
+## 3.1 Carga de paquetes
+
+```{r carga_paquetes, message=FALSE, warning=FALSE, include=FALSE}
+
+pacman::p_load(dplyr, #Para manipular datos
+               tidyverse, #Universo de paquetes
+               magrittr, #Para utilizar el operador pipe
+               srvyr, #Para trabajar con muestras complejas
+               survey,#para estimar los modelos con peso muestral
+               remotes, #Para instalar texreg desde GitHub
+               texreg, #Para crear tablas en formato publicable
+               sjPlot) #Para visualizar los datos
+    
+  
+```
+
+## 3.2 Carga de datos
+
+```{r carga_datos, message=FALSE, warning=FALSE}
+datos_proc <- readRDS("output/datos_proc.rds")
+```
+
+## 3.3 Creación objeto encuesta
+
+```{r creacion_objeto_encuesta, message=FALSE, warning=FALSE}
+EBS_objeto <- datos_proc %>% #Creamos un nuevo objeto llamado _objeto con la información de datos_proc
+  as_survey_design(ids = 1, #Aplicamos diseño muestral, especificando los ids a partir de 1 (entrevistado seleccionado),
+                   weights = fexp) #y el ponderador con factor de expansión 
+
+```
+
+## 3.4 Modelo de regresión logística binaria
+
+### a. Construcción múltiple modelos logísticos
+
+En este apartado se crean los modelos: 1, 2, 3 y 4 junto con el modelo 5 con el objeto encuesta.
+
+```{r modelos_logisticos, message=FALSE, warning=FALSE}
+
+modelo1 <- glm(tiempo_de_trabajo ~ 1, family = binomial(link = "logit"), data = datos_proc)
+modelo2 <- glm(etnia ~ tiempo_de_trabajo, family = binomial(link = "logit"), data = datos_proc)
+modelo3 <- glm(tiempo_de_trabajo ~ pobreza, family = binomial(link = "logit"), data = datos_proc)
+modelo4 <- glm(tiempo_de_trabajo ~ sexo + pobreza + pobreza, family = binomial(link = "logit"), data = datos_proc)
+modelo5survey <- svyglm(tiempo_de_trabajo ~ sexo + pobreza + sexo, family = binomial(link = "logit"), design = EBS_objeto, data = datos_proc)
+
+```
+
+### b. Representación modelos en una tabla
+
+Luego, se visualizan los todos los modelos (excepto modelo5survey) en una tabla única con coeficientes exponenciados correspondendientes a los Odds ratio que permiten reflejar la asociación entre las chances de las variables predictoras.
+
+```{r tabla_modelos_logisticos, message=FALSE, warning=FALSE}
+sjPlot::tab_model(list(modelo1,modelo2,modelo3,modelo4),
+  string.intercept = "(Intercepto)",
+  string.pred = "Predictores",
+  string.est = "Estimación (OR)",
+  p.style = "stars",
+  collapse.ci = T,
+  digits = 3,
+  dv.labels = c("Modelo 1", "Modelo 2", "Modelo 3", "Modelo 4"),
+  transform = "exp",
+  show.reflvl = TRUE,
+  encoding = "UTF-8",
+  lang = "es")
+```
+
+### c. Interpretación
+
+::: {style="text-align: justify"}
+
+En relación a la variable **"sexo"**, las chances de que las **"mujeres"** tengan un nivel de bienestar bajo, en comparación a los **"hombres"** respecto a la variable **"tiempo de trabajo"** debido a que las mujeres presentan mayor porcentaje con un **"75%"**, a diferenca de los hombres por 5 puntos menos **"70,5%"**.
+
+
+Con respecto a la variable **"tiempo de trabajo"**, las chances de que una persona le dedique al trabajo la misma cantidad de tiempo del que ya le dedica sería de  **"27,04%** a diferencia de una persona que le dedicaría más tiempo la cual sería de **"7,51%"** lo cual señala que el nivel de satisfacción en cuanto al tiempo de trabajo no es muy satisfacctorio.
+
+
+con respecto a la variable **"etnia"**, las chances de pertenecer a pueblos indígenas es baja con un **"14,29%"** por lo que se puede tener una baja representación de ellos a nivel nacional y sobre las realidades que a diferencia de los que no pertenecen a ningún pueblo indígena **"81,71"**. Crea desventajas a las que los pueblos indígenas a menudo permanecen invisibles en las estadísticas públicas.  
+
+Por último, respecto de la variable **"pobreza"**, las chances de no ser pobres extremos según la Casen en pandemia 2022, es de un **"6,04%"** a diferencia de quienes tenían el chance de ser pobres extremos con un **"4,07%"**, esto se podría explicar a traves de los bonos y ayuda social que proporcionó el estado chileno durante este periodo, además de los retiros de fondos de pensiones proporcionados por las afps. sim embargo eso no quita que los ciudadanos de chile no sientan un nivel de bienestar alto respecto a la pobreza en chile. 
+:::
+
+### d. Gráficos de valores predichos modelo 5 salud mental según sexo y trabajo productivo
+
+***Gráfico1 modelo 4 de tiempo de trabajo según sexo***
+
+```{r valores_predichos_sm_sexo, message=FALSE, warning=FALSE}
+plot_model(modelo4, type = c("pred"),
+           terms = c("sexo"),  digits = 3,
+           axis.title = c("Sexo", "Tiempo de trabajo"),
+           title = "Gráfico 1. Modelo 4 que estima el tiempo de trabajo según sexo")
+```
+
+***Gráfico 2 modelo 2 de valores de pobreza según etnia***
+
+```{r valores_predichos_sm_trabajo, message=FALSE, warning=FALSE}
+plot_model(modelo2, type = c("pred"),
+           terms = c("tiempo_de_trabajo"),  digits = 3,
+           axis.title = c("Etnia", "Pobreza"),
+           title = "Gráfico 2. Modelo 5 que estima pobreza según etnia")
+
+
+```
+
+### e. Comparación y reporte estimación modelo 5 con R base y modelo 5 con diseño complejo de encuestas.
+
+
+***Reporte con tab_model de modelo 5 con R base y diseño complejo***
+
+Asimismo, se reporta la tabla del modelo 5 con R base:
+
+```{r tabla_modelo5_R_base, message=FALSE, warning=FALSE}
+sjPlot::tab_model(modelo5survey, 
+                  show.ci=FALSE, 
+                  transform = 'exp', 
+                  p.style = "stars", 
+                  df.method = 'wald', 
+                  dv.labels = "Modelo 6 con R base", 
+                  string.pred = "Predictores", string.est = "β", 
+                  encoding =  "UTF-8")
+```
+
+Para luego compararla con la tabla del modelo 5 con diseño complejo:
+
+```{r tabla_modelo5_diseño_complejo, message=FALSE, warning=FALSE}
+sjPlot::tab_model(modelo5survey, 
+                  show.ci=FALSE, 
+                  transform = 'exp', 
+                  p.style = "stars", 
+                  df.method = 'wald',
+                  dv.labels = "Modelo 6 diseño complejo", 
+                  string.pred = "Predictores", string.est = "β", 
+                  encoding =  "UTF-8")
+```
+
+En resumen, se observa que cuando se utiliza el diseño complejo de encuestas en el modelo 5, la categoría "Mujer" deja de ser significativa eso implica que no tiene un efecto sobre la variable dependiente. 
+
+# 4. Conclusión
+
+Una vez realizado el análisis de regresión logística binaria se puede concluir que existe un efecto negativo en las perspectivas de bienestar social por parte de los chilenos y chilenas sobre todo en el nivel de tiempo que se le dedica al trabajo remunerado u ocupación con diferencia en hombres como mujeres, ya que son ellas quienes tienen un mayor porcentaje de trabajo y en el cual no están dispuestas a dedicarle más tiempo del necesario a esta acción. Así mismo la baja representación de los pueblos indígenas genera que haya invisibilización de este, lo que no permitiría aplicar una encuesta de bienestar certero respecto al nivel de pobreza o del tiempo dedicado al trabajo. por otro lado las personas no pertenecientes al territorio chileno (inmigrantes) si bien tienen un bajo porcentaje de inmigración durante el periodo de pandemia (2021) no excluye la posibilidad de que ellos estén presenten o no niveles de pobreza extrema, no pobreza extrema o no pobreza. por lo que los factores que influyen para que la perspectiva de bienestar de los chilenos y chilenas según la EBS 2021 sea buena o mala son sexo,etnia,situación de pobreza por ingresos,tiempo en Trabajo remunerado u ocupación y situación de inmigración del país.
+
+# 5. Referencias
+
+- Ministerios de Desarrollo Social y Familia. (2021). Encuesta de Bienestar Social. http://observatorio.ministeriodesarrollosocial.gob.cl/encuesta-bienestar-social
+
+- Navegador indígena. (2021, Mayo). Los pueblos indígenas en un mundo del trabajo en transformación. https://www.ilo.org/wcmsp5/groups/public/---dgreports/---gender/documents/publication/wcms_804303.pdf
+
+
